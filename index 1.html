@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Bitter', Georgia, serif; }
+
+        html, body {
+            width: 100%; height: 100%;
+            font-family: 'Bitter', Georgia, serif;
+            display: flex; flex-direction: column;
+            background: #0d0d0d;
+        }
+
+        /* ── HEADER ── */
+        #map-header {
+            background: linear-gradient(135deg, #4a0000 0%, #7c0a02 50%, #b91c1c 100%);
+            color: #fff; padding: 8px 16px 7px;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0; box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+            z-index: 2000; border-bottom: 2px solid #dc2626;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #map-header .hdr-left { display: flex; align-items: center; gap: 12px; }
+        #map-header .hdr-icon {
+            font-size: 26px; background: rgba(255,255,255,0.12);
+            border-radius: 50%; width: 42px; height: 42px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        #map-header h1 {
+            font-size: 17px; font-weight: 700; letter-spacing: 0.3px;
+            line-height: 1.2; font-family: 'Bitter', Georgia, serif;
+        }
+        #map-header .subtitle {
+            font-size: 11px; opacity: 0.82; margin-top: 2px; font-weight: 400;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #map-header .hdr-right {
+            text-align: right; font-size: 10.5px; opacity: 0.78; line-height: 1.6;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #map-header .hdr-badge {
+            display: inline-block; background: rgba(255,255,255,0.15);
+            border-radius: 3px; padding: 1px 7px; margin: 1px 2px; font-size: 10px;
+        }
+
+        /* ── MAP ── */
+        #map { flex: 1; width: 100%; position: relative; }
+
+        /* ── LEAFLET POPUP FONT ── */
+        .leaflet-popup-content, .leaflet-popup-content table,
+        .leaflet-popup-content th, .leaflet-popup-content td {
+            font-family: 'Bitter', Georgia, serif !important;
+            font-size: 12px !important;
+        }
+        .leaflet-container { font-family: 'Bitter', Georgia, serif !important; }
+        .leaflet-control, .leaflet-control-zoom a { font-family: 'Bitter', Georgia, serif !important; }
+
+        /* ── LEGEND BASE ── */
+        .map-legend {
+            background: rgba(12,12,12,0.93);
+            border: 1px solid rgba(220,38,38,0.35); border-radius: 8px;
+            padding: 10px 13px; box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+            font-size: 11px; line-height: 1.55; color: #e5e5e5;
+            min-width: 168px; position: absolute; z-index: 1000;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        .map-legend h4 {
+            margin: 0 0 7px 0; font-size: 11.5px; font-weight: 700; color: #f87171;
+            border-bottom: 1px solid rgba(220,38,38,0.3); padding-bottom: 4px;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        .leg-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+        .leg-swatch {
+            width: 18px; height: 13px; border-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.18); flex-shrink: 0;
+        }
+        .leg-dot {
+            border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3);
+            flex-shrink: 0; display: inline-block;
+        }
+        .leg-sep { border-top: 1px solid rgba(220,38,38,0.2); margin: 6px 0; }
+        #leg-points     { bottom: 28px; left: 10px; }
+
+        /* ── TREND PANEL ── */
+        #trend-panel {
+            position: absolute;
+            top: 10px; right: 10px;
+            width: 310px;
+            background: rgba(10,10,10,0.95);
+            border: 1px solid rgba(220,38,38,0.45);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+            z-index: 1000;
+            font-family: 'Bitter', Georgia, serif;
+            /* NO overflow:hidden — let it size naturally */
+        }
+        #trend-panel .tp-hdr {
+            background: linear-gradient(90deg, #7c0a02, #b91c1c);
+            color: #fff; padding: 8px 12px;
+            font-size: 11.5px; font-weight: 700;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none;
+            border-radius: 8px 8px 0 0;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #trend-panel .tp-hdr:hover { background: linear-gradient(90deg,#8c1002,#c82020); }
+        #trend-panel .tp-arrow { font-size: 12px; transition: transform 0.25s; }
+        #trend-panel .tp-arrow.open { transform: rotate(0deg); }
+        #trend-panel .tp-arrow.closed { transform: rotate(-90deg); }
+
+        /* tp-body: animated slide */
+        #trend-panel .tp-body {
+            padding: 10px 12px 10px;
+            overflow: hidden;
+            transition: max-height 0.35s ease, padding 0.35s ease, opacity 0.25s ease;
+            max-height: 600px;   /* large enough when open */
+            opacity: 1;
+        }
+        #trend-panel .tp-body.collapsed {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
+        }
+
+        #trend-panel .tp-stats {
+            display: flex; gap: 6px; margin-bottom: 8px;
+        }
+        #trend-panel .tp-stat {
+            flex: 1; background: rgba(220,38,38,0.1);
+            border: 1px solid rgba(220,38,38,0.25);
+            border-radius: 5px; padding: 5px 6px; text-align: center;
+        }
+        #trend-panel .tp-stat .val {
+            font-size: 14px; font-weight: 700; color: #f87171;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #trend-panel .tp-stat .lbl {
+            font-size: 9px; color: #888; margin-top: 1px;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #trend-panel .tp-tabs {
+            display: flex; gap: 4px; margin-bottom: 8px;
+        }
+        #trend-panel .tp-tab {
+            flex: 1; padding: 5px 0; text-align: center;
+            font-size: 10px; font-weight: 600;
+            border-radius: 4px; cursor: pointer;
+            border: 1px solid rgba(220,38,38,0.4);
+            color: #999; background: transparent;
+            transition: all 0.2s;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        #trend-panel .tp-tab.active {
+            background: #b91c1c; color: #fff; border-color: #b91c1c;
+        }
+        #trend-panel .tp-tab:hover:not(.active) {
+            background: rgba(220,38,38,0.15); color: #f87171;
+        }
+        #trend-panel .tp-chart-wrap {
+            position: relative; width: 100%; height: 165px;
+        }
+        #trend-panel .tp-source {
+            font-size: 9px; color: #555; margin-top: 5px; text-align: right;
+            font-family: 'Bitter', Georgia, serif;
+        }
+        </style>
+        <title>Ebola Outbreaks — WHO Data 1976–2026</title>
+    </head>
+    <body>
+    <!-- ══ HEADER ══ -->
+    <div id="map-header">
+      <div class="hdr-left">
+        <div class="hdr-icon">🦠</div>
+        <div>
+          <h1>Ebola Virus Disease (EVD) Outbreaks Global Distribution</h1>
+          <div class="subtitle">Confirmed Cases &amp; Case Fatality Rate (CFR) by Country and Epicentre · WHO Disease Outbreak Data 1976–2026</div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        Source: <strong>World Health Organization (WHO)</strong><br>
+        <span class="hdr-badge">📍 33 Outbreaks</span>
+        <span class="hdr-badge">🌍 18 Countries</span>
+        <span class="hdr-badge">☠ ~40,000+ Deaths</span>
+      </div>
+    </div>
+
+    <!-- ══ MAP ══ -->
+    <div id="map">
+
+
+      <!-- Point legend: bottom-left -->
+      <div id="leg-points" class="map-legend">
+        <h4>🔴 Outbreak Epicentres (Points)</h4>
+        <div class="leg-row"><span class="leg-dot" style="width:10px;height:10px;background:rgba(255,255,255,0.9);"></span><span>0 – 1 cases</span></div>
+        <div class="leg-row"><span class="leg-dot" style="width:10px;height:10px;background:rgba(255,191,191,1);"></span><span>1 – 3 cases</span></div>
+        <div class="leg-row"><span class="leg-dot" style="width:10px;height:10px;background:rgba(255,128,128,1);"></span><span>3 – 24 cases</span></div>
+        <div class="leg-row"><span class="leg-dot" style="width:10px;height:10px;background:rgba(255,64,64,1);"></span><span>24 – 164 cases</span></div>
+        <div class="leg-row"><span class="leg-dot" style="width:10px;height:10px;background:rgba(255,0,0,1);"></span><span>164 – 14,124 cases</span></div>
+        <div class="leg-sep"></div>
+        <div style="font-size:10px;color:#aaa;">Click any point for outbreak details</div>
+      </div>
+
+      <!-- Trend panel: top-right -->
+      <div id="trend-panel">
+        <div class="tp-hdr" onclick="toggleTrend()">
+          <span>📈 Outbreak Trends: Death Rate &amp; Infection Rate</span>
+          <span class="tp-arrow open" id="tp-arrow">▼</span>
+        </div>
+        <div class="tp-body" id="tp-body">
+          <div class="tp-stats">
+            <div class="tp-stat"><div class="val">~67%</div><div class="lbl">Avg CFR — Zaire strain</div></div>
+            <div class="tp-stat"><div class="val">~50%</div><div class="lbl">Avg CFR — Sudan strain</div></div>
+            <div class="tp-stat"><div class="val">~25%</div><div class="lbl">Avg CFR — Bundibugyo</div></div>
+          </div>
+          <div class="tp-tabs">
+            <div class="tp-tab active" id="tab-cfr"   onclick="showChart('cfr')">Death Rate (CFR %)</div>
+            <div class="tp-tab"        id="tab-cases" onclick="showChart('cases')">Infection Count</div>
+            <div class="tp-tab"        id="tab-both"  onclick="showChart('both')">Combined View</div>
+          </div>
+          <div class="tp-chart-wrap">
+            <canvas id="trend-canvas"></canvas>
+          </div>
+          <div class="tp-source">Source: WHO Disease Outbreak News 1976–2026 &nbsp;·&nbsp; *2026 figures active/provisional</div>
+        </div>
+
+    </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="data/FinalConfirmedCasesofEbola_1.js"></script>
+        <script src="data/FinalEbolaShapeFileWHO_3.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-12.867652686942233,6.148222469870052],[12.154903788368534,46.99386198620441]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_OSMStandard_0');
+        map.getPane('pane_OSMStandard_0').style.zIndex = 400;
+        var layer_OSMStandard_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_0;
+        function pop_FinalConfirmedCasesofEbola_1(feature, layer) {
+            var props = feature.properties;
+            var countryName = props['NAME'] || props['ADMIN'] || props['name'] || props['country'] || props['Country'] || 'Unknown';
+            var cases = props['Confirmed_'] !== undefined ? props['Confirmed_'] : (props['Confirmed'] || 'N/A');
+            var casesLabel = (cases === 0 || cases === '0') ? 'No confirmed cases' : Number(cases).toLocaleString() + ' confirmed cases';
+            
+            // Determine shade band
+            var band = '';
+            if      (cases <= 1)     band = '0 – 1 (lightest)';
+            else if (cases <= 4)     band = '1 – 4';
+            else if (cases <= 12)    band = '4 – 12';
+            else if (cases <= 335)   band = '12 – 335';
+            else if (cases <= 800)   band = '335 – 800';
+            else if (cases <= 5831)  band = '800 – 5,831';
+            else                     band = '5,831 – 14,124 (darkest)';
+
+            var popupContent = '<table style="font-family:Bitter,Georgia,serif;min-width:180px;">'
+                + '<tr><th colspan="2" style="background:#7c0a02;color:#fff;padding:6px 8px;font-size:13px;border-radius:4px 4px 0 0;">' + countryName + '</th></tr>'
+                + '<tr><td style="padding:4px 8px;color:#555;font-size:11px;">Confirmed Cases</td><td style="padding:4px 8px;font-weight:700;color:#b91c1c;">' + casesLabel + '</td></tr>'
+                + '<tr><td style="padding:4px 8px;color:#555;font-size:11px;">Case Band</td><td style="padding:4px 8px;font-size:11px;">' + band + '</td></tr>'
+                + '</table>';
+
+            layer.bindPopup(popupContent, { maxHeight: 400 });
+            
+            // Hover highlight
+            layer.on('mouseover', function(e) {
+                layer.setStyle({ weight: 2.5, color: '#fff', fillOpacity: 0.9 });
+            });
+            layer.on('mouseout', function(e) {
+                layer_FinalConfirmedCasesofEbola_1.resetStyle(layer);
+            });
+        }
+
+        function style_FinalConfirmedCasesofEbola_1_0(feature) {
+            if (feature.properties['Confirmed_'] >= 0.000000 && feature.properties['Confirmed_'] <= 1.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,245,240,1.0)',
+                interactive: false,
+            }
+            }
+            if (feature.properties['Confirmed_'] >= 1.000000 && feature.properties['Confirmed_'] <= 4.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(253,214,196,1.0)',
+                interactive: false,
+            }
+            }
+            if (feature.properties['Confirmed_'] >= 4.000000 && feature.properties['Confirmed_'] <= 12.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,164,134,1.0)',
+                interactive: false,
+            }
+            }
+            if (feature.properties['Confirmed_'] >= 12.000000 && feature.properties['Confirmed_'] <= 335.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(251,112,80,1.0)',
+                interactive: false,
+            }
+            }
+            if (feature.properties['Confirmed_'] >= 335.000000 && feature.properties['Confirmed_'] <= 800.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(234,55,42,1.0)',
+                interactive: false,
+            }
+            }
+            if (feature.properties['Confirmed_'] >= 800.000000 && feature.properties['Confirmed_'] <= 5831.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(186,20,25,1.0)',
+                interactive: false,
+            }
+            }
+            if (feature.properties['Confirmed_'] >= 5831.000000 && feature.properties['Confirmed_'] <= 14124.000000 ) {
+                return {
+                pane: 'pane_FinalConfirmedCasesofEbola_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(103,0,13,1.0)',
+                interactive: false,
+            }
+            }
+        }
+        map.createPane('pane_FinalConfirmedCasesofEbola_1');
+        map.getPane('pane_FinalConfirmedCasesofEbola_1').style.zIndex = 401;
+        map.getPane('pane_FinalConfirmedCasesofEbola_1').style['mix-blend-mode'] = 'normal';
+        var layer_FinalConfirmedCasesofEbola_1 = new L.geoJson(json_FinalConfirmedCasesofEbola_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_FinalConfirmedCasesofEbola_1',
+            layerName: 'layer_FinalConfirmedCasesofEbola_1',
+            pane: 'pane_FinalConfirmedCasesofEbola_1',
+            onEachFeature: pop_FinalConfirmedCasesofEbola_1,
+            style: style_FinalConfirmedCasesofEbola_1_0,
+        });
+        bounds_group.addLayer(layer_FinalConfirmedCasesofEbola_1);
+        map.addLayer(layer_FinalConfirmedCasesofEbola_1);
+        map.createPane('pane_CartoDBDark_2');
+        map.getPane('pane_CartoDBDark_2').style.zIndex = 402;
+        var layer_CartoDBDark_2 = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+            pane: 'pane_CartoDBDark_2',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 18
+        });
+        layer_CartoDBDark_2;
+        map.addLayer(layer_CartoDBDark_2);
+        function pop_FinalEbolaShapeFileWHO_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Date</th>\
+                        <td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Country</th>\
+                        <td>' + (feature.properties['Country'] !== null ? autolinker.link(String(feature.properties['Country']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Virus Stra'] !== null ? autolinker.link(String(feature.properties['Virus Stra']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Confirmed" colspan="2"><strong>Confirmed</strong><br />' + (feature.properties['Confirmed'] !== null ? autolinker.link(String(feature.properties['Confirmed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CFR (%)</th>\
+                        <td class="visible-with-data" id="CFR (%)">' + (feature.properties['CFR (%)'] !== null ? autolinker.link(String(feature.properties['CFR (%)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Outbreak T'] !== null ? autolinker.link(String(feature.properties['Outbreak T']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Notes'] !== null ? autolinker.link(String(feature.properties['Notes']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_FinalEbolaShapeFileWHO_3_0(feature) {
+            if (feature.properties['Confirmed'] >= 0.000000 && feature.properties['Confirmed'] <= 1.000000 ) {
+                return {
+                pane: 'pane_FinalEbolaShapeFileWHO_3',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Confirmed'] >= 1.000000 && feature.properties['Confirmed'] <= 3.000000 ) {
+                return {
+                pane: 'pane_FinalEbolaShapeFileWHO_3',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,191,191,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Confirmed'] >= 3.000000 && feature.properties['Confirmed'] <= 24.000000 ) {
+                return {
+                pane: 'pane_FinalEbolaShapeFileWHO_3',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,128,128,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Confirmed'] >= 24.000000 && feature.properties['Confirmed'] <= 164.000000 ) {
+                return {
+                pane: 'pane_FinalEbolaShapeFileWHO_3',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,64,64,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Confirmed'] >= 164.000000 && feature.properties['Confirmed'] <= 14124.000000 ) {
+                return {
+                pane: 'pane_FinalEbolaShapeFileWHO_3',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,0,0,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_FinalEbolaShapeFileWHO_3');
+        map.getPane('pane_FinalEbolaShapeFileWHO_3').style.zIndex = 403;
+        map.getPane('pane_FinalEbolaShapeFileWHO_3').style['mix-blend-mode'] = 'normal';
+        var layer_FinalEbolaShapeFileWHO_3 = new L.geoJson(json_FinalEbolaShapeFileWHO_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_FinalEbolaShapeFileWHO_3',
+            layerName: 'layer_FinalEbolaShapeFileWHO_3',
+            pane: 'pane_FinalEbolaShapeFileWHO_3',
+            onEachFeature: pop_FinalEbolaShapeFileWHO_3,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_FinalEbolaShapeFileWHO_3_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_FinalEbolaShapeFileWHO_3);
+        map.addLayer(layer_FinalEbolaShapeFileWHO_3);
+        setBounds();
+        </script>        
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script>
+    // ── Data: all WHO Ebola outbreaks 1976–2026 ──
+    var OD = [
+        { y:1976, l:"DRC 1976",        cases:318,   cfr:88 },
+        { y:1976, l:"S.Sudan 1976",    cases:284,   cfr:53 },
+        { y:1979, l:"S.Sudan 1979",    cases:34,    cfr:65 },
+        { y:1994, l:"Gabon 1994",      cases:52,    cfr:60 },
+        { y:1995, l:"DRC 1995",        cases:315,   cfr:81 },
+        { y:1996, l:"Gabon 1996",      cases:91,    cfr:73 },
+        { y:2000, l:"Uganda 2000",     cases:425,   cfr:53 },
+        { y:2001, l:"Gabon/ROC 01",    cases:302,   cfr:84 },
+        { y:2004, l:"S.Sudan 2004",    cases:17,    cfr:41 },
+        { y:2005, l:"ROC 2005",        cases:12,    cfr:83 },
+        { y:2007, l:"DRC 2007",        cases:264,   cfr:71 },
+        { y:2007, l:"Uganda BDBV",     cases:149,   cfr:25 },
+        { y:2012, l:"Uganda 2012",     cases:24,    cfr:71 },
+        { y:2012, l:"DRC BDBV 12",     cases:57,    cfr:51 },
+        { y:2014, l:"Sierra Leone",    cases:14124, cfr:28 },
+        { y:2014, l:"Liberia",         cases:10675, cfr:45 },
+        { y:2014, l:"Guinea",          cases:3814,  cfr:67 },
+        { y:2018, l:"DRC 2018",        cases:54,    cfr:61 },
+        { y:2019, l:"DRC Kivu",        cases:3470,  cfr:66 },
+        { y:2020, l:"DRC 2020",        cases:130,   cfr:42 },
+        { y:2021, l:"Guinea 2021",     cases:23,    cfr:52 },
+        { y:2021, l:"DRC 2021",        cases:12,    cfr:50 },
+        { y:2022, l:"Uganda 2022",     cases:164,   cfr:47 },
+        { y:2025, l:"Uganda 2025",     cases:14,    cfr:29 },
+        { y:2025, l:"DRC 2025",        cases:64,    cfr:70 },
+        { y:2026, l:"DRC/UGA 2026*",   cases:1157,  cfr:26 },
+    ];
+
+    var _chart = null;
+    var _mode  = 'cfr';
+
+    function _buildConfig(mode) {
+        var labels = OD.map(function(d){ return d.l; });
+        var ds = [];
+
+        var commonOpts = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#ccc',
+                        font: { size: 10, family: "'Bitter', Georgia, serif" },
+                        boxWidth: 12, padding: 8
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.88)',
+                    titleColor: '#f87171',
+                    bodyColor: '#ddd',
+                    borderColor: '#b91c1c',
+                    borderWidth: 1,
+                    titleFont: { family: "'Bitter', Georgia, serif", size: 11 },
+                    bodyFont:  { family: "'Bitter', Georgia, serif", size: 10 },
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#777',
+                        font: { size: 8, family: "'Bitter', Georgia, serif" },
+                        maxRotation: 55, minRotation: 45
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                y: {
+                    type: 'linear', position: 'left',
+                    ticks: {
+                        color: mode === 'cases' ? '#60a5fa' : '#f87171',
+                        font: { size: 9, family: "'Bitter', Georgia, serif" }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    title: {
+                        display: true,
+                        text: mode === 'cases' ? 'Confirmed Cases' : 'CFR (%)',
+                        color: mode === 'cases' ? '#60a5fa' : '#f87171',
+                        font: { size: 9, family: "'Bitter', Georgia, serif" }
+                    }
+                },
+                y2: {
+                    type: 'linear', position: 'right', display: mode === 'both',
+                    ticks: {
+                        color: '#60a5fa',
+                        font: { size: 9, family: "'Bitter', Georgia, serif" }
+                    },
+                    grid: { drawOnChartArea: false },
+                    title: {
+                        display: mode === 'both',
+                        text: 'Confirmed Cases',
+                        color: '#60a5fa',
+                        font: { size: 9, family: "'Bitter', Georgia, serif" }
+                    }
+                }
+            }
+        };
+
+        if (mode === 'cfr' || mode === 'both') {
+            ds.push({
+                label: 'CFR (%)',
+                data: OD.map(function(d){ return d.cfr; }),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239,68,68,0.12)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: '#ef4444',
+                fill: true,
+                tension: 0.3,
+                yAxisID: 'y'
+            });
+        }
+        if (mode === 'cases' || mode === 'both') {
+            ds.push({
+                label: 'Confirmed Cases',
+                data: OD.map(function(d){ return d.cases; }),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.08)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: '#3b82f6',
+                fill: true,
+                tension: 0.3,
+                yAxisID: mode === 'both' ? 'y2' : 'y'
+            });
+        }
+
+        return { type: 'line', data: { labels: labels, datasets: ds }, options: commonOpts };
+    }
+
+    function showChart(mode) {
+        _mode = mode;
+        ['cfr','cases','both'].forEach(function(m){
+            var el = document.getElementById('tab-' + m);
+            if (el) el.classList.toggle('active', m === mode);
+        });
+        if (_chart) { _chart.destroy(); _chart = null; }
+        var canvas = document.getElementById('trend-canvas');
+        if (!canvas) return;
+        _chart = new Chart(canvas.getContext('2d'), _buildConfig(mode));
+    }
+
+    function toggleTrend() {
+        var body  = document.getElementById('tp-body');
+        var arrow = document.getElementById('tp-arrow');
+        if (!body) return;
+        var isOpen = !body.classList.contains('collapsed');
+        if (isOpen) {
+            // close
+            body.classList.add('collapsed');
+            if (arrow) { arrow.textContent = '▶'; arrow.classList.remove('open'); arrow.classList.add('closed'); }
+        } else {
+            // open
+            body.classList.remove('collapsed');
+            if (arrow) { arrow.textContent = '▼'; arrow.classList.remove('closed'); arrow.classList.add('open'); }
+            // re-render chart after transition completes
+            setTimeout(function(){ showChart(_mode); }, 380);
+        }
+    }
+
+    window.addEventListener('load', function(){
+        // small delay so map tiles don't block
+        setTimeout(function(){
+            var arrow = document.getElementById('tp-arrow');
+            if (arrow) { arrow.classList.add('open'); }
+            showChart('cfr');
+        }, 500);
+    });
+    </script>
+    </body>
+</html>
